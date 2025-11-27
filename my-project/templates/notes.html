@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notes - Social App</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            padding: 2rem 0;
+        }
+        .note-card {
+            margin-bottom: 1.5rem;
+            border-left: 4px solid #0056b3;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .note-header {
+            background-color: #f0f0f0;
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid #ddd;
+        }
+        .note-author {
+            font-weight: 600;
+            color: #0056b3;
+        }
+        .note-time {
+            font-size: 0.85rem;
+            color: #666;
+        }
+        .note-content {
+            padding: 1rem;
+            font-size: 1rem;
+            line-height: 1.5;
+            word-wrap: break-word;
+        }
+        .note-reactions {
+            padding: 0 1rem 0.5rem 1rem;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        .reaction-btn {
+            background-color: #e0e0e0;
+            border: none;
+            border-radius: 20px;
+            padding: 0.25rem 0.75rem;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .reaction-btn:hover {
+            background-color: #d0d0d0;
+        }
+        .reaction-btn.user-reacted {
+            background-color: #0056b3;
+            color: white;
+        }
+        .reply-section {
+            margin-left: 2rem;
+            margin-top: 1rem;
+            padding-left: 1rem;
+            border-left: 2px solid #ddd;
+        }
+        .reply-card {
+            margin-bottom: 1rem;
+            padding: 0.75rem;
+            background-color: #fafafa;
+            border-radius: 4px;
+        }
+        .reply-form {
+            margin-top: 0.75rem;
+            padding: 0.75rem;
+            background-color: #fafafa;
+            border-radius: 4px;
+        }
+        .emoji-picker {
+            display: flex;
+            gap: 0.25rem;
+            flex-wrap: wrap;
+            margin-top: 0.5rem;
+        }
+        .emoji-btn {
+            background-color: #e0e0e0;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 0.25rem 0.5rem;
+            cursor: pointer;
+            font-size: 1.2rem;
+            transition: all 0.2s;
+        }
+        .emoji-btn:hover {
+            background-color: #0056b3;
+            color: white;
+            border-color: #0056b3;
+        }
+        .post-form {
+            margin-bottom: 2rem;
+            padding: 1.5rem;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .nav-back {
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="nav-back">
+            <a href="/" class="btn btn-secondary">← Back to Home</a>
+        </div>
+
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-info alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <div class="row">
+            <div class="col-md-8">
+                <!-- Post New Note Form -->
+                <div class="post-form">
+                    <h5>Write a Note</h5>
+                    <form method="POST" action="{{ url_for('create_note') }}">
+                        {{ form.hidden_tag() }}
+                        <div class="mb-3">
+                            {{ form.content(class="form-control", placeholder="What's on your mind?", rows="3") }}
+                            {% if form.content.errors %}
+                                <div class="text-danger small mt-1">
+                                    {% for error in form.content.errors %}
+                                        {{ error }}<br>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        <button type="submit" class="btn btn-primary">Post Note</button>
+                    </form>
+                </div>
+
+                <!-- Notes Display -->
+                {% if notes_data %}
+                    {% for item in notes_data %}
+                        {% set note = item.note %}
+                        {% set replies = item.replies %}
+                        {% set reactions = item.reactions %}
+                        {% set user_reactions = item.user_reactions %}
+                        {% set reply_reactions = item.reply_reactions %}
+                        {% set reply_user_reactions = item.reply_user_reactions %}
+
+                        <div class="card note-card">
+                            <div class="note-header">
+                                <span class="note-author">{{ note.username }}</span>
+                                <span class="note-time">{{ note.created_at }}</span>
+                            </div>
+                            <div class="note-content">
+                                {{ note.content }}
+                            </div>
+
+                            <!-- Reactions for Main Note -->
+                            {% if reactions %}
+                                <div class="note-reactions">
+                                    {% for reaction in reactions %}
+                                        <form method="POST" action="{{ url_for('react_to_note', note_id=note.id) }}" style="display: inline;">
+                                            <button type="submit" name="emoji" value="{{ reaction.emoji }}" class="reaction-btn {% if reaction.emoji in user_reactions %}user-reacted{% endif %}">
+                                                {{ reaction.emoji }} {{ reaction.count }}
+                                            </button>
+                                        </form>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+
+                            <!-- Add Reaction -->
+                            <div class="note-reactions">
+                                <div class="emoji-picker">
+                                    {% set emojis = ['👍', '❤️', '😀', '😂', '🤔', '😢', '😡', '🎉', '🔥', '✨'] %}
+                                    {% for emoji in emojis %}
+                                        <form method="POST" action="{{ url_for('react_to_note', note_id=note.id) }}" style="display: inline;">
+                                            <button type="submit" name="emoji" value="{{ emoji }}" class="emoji-btn" title="React with {{ emoji }}">
+                                                {{ emoji }}
+                                            </button>
+                                        </form>
+                                    {% endfor %}
+                                </div>
+                            </div>
+
+                            <!-- Replies Section -->
+                            {% if replies %}
+                                <div class="reply-section">
+                                    <h6 class="text-muted mb-3">Replies</h6>
+                                    {% for reply in replies %}
+                                        <div class="reply-card">
+                                            <div>
+                                                <strong class="text-primary">{{ reply.username }}</strong>
+                                                <span class="text-muted small">{{ reply.created_at }}</span>
+                                            </div>
+                                            <div class="mt-2">{{ reply.content }}</div>
+
+                                            <!-- Reactions for Reply -->
+                                            {% if reply_reactions[reply.id] %}
+                                                <div class="note-reactions mt-2">
+                                                    {% for reaction in reply_reactions[reply.id] %}
+                                                        <form method="POST" action="{{ url_for('react_to_note', note_id=reply.id) }}" style="display: inline;">
+                                                            <button type="submit" name="emoji" value="{{ reaction.emoji }}" class="reaction-btn {% if reaction.emoji in reply_user_reactions[reply.id] %}user-reacted{% endif %}" style="font-size: 0.8rem; padding: 0.2rem 0.5rem;">
+                                                                {{ reaction.emoji }} {{ reaction.count }}
+                                                            </button>
+                                                        </form>
+                                                    {% endfor %}
+                                                </div>
+                                            {% endif %}
+
+                                            <!-- Add Reaction to Reply -->
+                                            <div class="note-reactions mt-2">
+                                                <div class="emoji-picker">
+                                                    {% for emoji in emojis %}
+                                                        <form method="POST" action="{{ url_for('react_to_note', note_id=reply.id) }}" style="display: inline;">
+                                                            <button type="submit" name="emoji" value="{{ emoji }}" class="emoji-btn" style="font-size: 0.9rem; padding: 0.15rem 0.3rem;" title="React with {{ emoji }}">
+                                                                {{ emoji }}
+                                                            </button>
+                                                        </form>
+                                                    {% endfor %}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+
+                            <!-- Reply Form -->
+                            <div class="reply-form">
+                                <form method="POST" action="{{ url_for('create_reply', note_id=note.id) }}">
+                                    <div class="input-group input-group-sm">
+                                        <input type="text" name="content" class="form-control" placeholder="Write a reply..." maxlength="500" required>
+                                        <button class="btn btn-primary btn-sm" type="submit">Reply</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="alert alert-info">
+                        No notes yet. Be the first to post one!
+                    </div>
+                {% endif %}
+            </div>
+
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Tips</h5>
+                        <ul class="small">
+                            <li>Click on an emoji button to react</li>
+                            <li>Click an existing reaction to remove it</li>
+                            <li>Reply to any note to start a conversation</li>
+                            <li>Use @ to mention someone (coming soon)</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
